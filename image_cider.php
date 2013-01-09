@@ -1,12 +1,8 @@
+#!/usr/bin/php
 <?php
-class Conf {
-	const prefix='images/';
-	const index='tpl/images.txt';
-	const tpl='tpl/template.html';
-}
-
-$index = file(Conf::index);
-$tpl = file_get_contents(Conf::tpl);
+require_once('conf.php');
+$index = file(Conf::tplpath.Conf::imgindex);
+$tpl = file_get_contents(Conf::tplpath.Conf::html);
 
 for ($i=0;$i<count($index);$i++) {
 	$_arr = explode("\t",$index[$i]);

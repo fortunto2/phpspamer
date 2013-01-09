@@ -1,37 +1,37 @@
+#!/usr/bin/php
 <?php
 include "class.phpmailer.php";
-$m = new PHPMailer(true);
+
+require_once('conf.php');
+
+$m = new PHPMailer(false);
 $m->IsSMTP();
 
-/*
-$m->SMTPAuth = true;
-$m->Username = '';
-$m->Password = '';
-*/
 $m->SMTPAuth = false;
-$m->Host = '192.168.100.10';
-$m->Port = 25;
-
-
-$m->SetFrom('noreply@yoursite.com','Yoursite.com');
+$m->Host = Conf::smtphost;
+$m->Port = Conf::smtpport;
+$m->XMailer = Conf::xmailer;
+$m->SetFrom(Conf::fromaddr,Conf::fromname);
 $m->SMTPDebug = 1;
 $m->CharSet = 'utf-8';
 
-$mail_list=file('mail_list.txt');
-$tpl = file_get_contents('tpl/template.html');
-$altbody = file_get_contents('tpl/altbody.txt');
-$_list = file('tpl/images.txt');
+$mail_list=file(Conf::maillist);
+$tpl = file_get_contents(Conf::tplpath.Conf::html);
+$altbody = file_get_contents(Conf::tplpath.Conf::altbody);
+$_list = file(Conf::tplpath.Conf::imgindex);
 $img_list=array();
 for ($i=0;$i<count($_list);$i++) {
 	$_arr = explode("\t",$_list[$i]);
 	if (!isset($_arr[1])) continue;
 	$img_list[] = array(
-		'src'=>'tpl/'.trim($_arr[1]),
+		'src'=>Conf::tplpath.trim($_arr[1]),
 		'cid'=>trim($_arr[0]),
 	);
 }
-$subjects = file('subjects.txt');
+$subjects = file(Conf::subjects);
 
+$persession=8;
+$insessid=0;
 for ($i=0;$i<count($mail_list);$i++) {
 	$_to = trim($mail_list[$i]);
 	$_username = substr($_to,0,strpos($_to,'@'));
@@ -40,6 +40,7 @@ for ($i=0;$i<count($mail_list);$i++) {
 		continue;
 	}
 	$m->ClearAllRecipients();
+	$m->ClearAttachments();
 	$m->AddAddress($_to);
 	$m->Subject=$subjects[rand(0,count($subjects)-1)];
 	$m->AltBody = $altbody;
@@ -49,8 +50,24 @@ for ($i=0;$i<count($mail_list);$i++) {
 	for ($j=0;$j<count($img_list);$j++) {
 		$m->AddEmbeddedImage($img_list[$j]['src'],$img_list[$j]['cid']);
 	}
-	$m->Send();
-	echo "Sended to $_to\n";
+	$insessid++;
+	if ($insessid>$persession) {
+		$insessid=0;
+		$m->SmtpClose();
+		echo "SMTP manual reconnect\n";
+	}
+	while(true) {
+		$res = $m->Send();
+		if (!$res) {
+			echo "SMTP connection dropped, reconnect after 10 seconds...\n";
+			$m->SmtpClose();
+			$insessid=0;
+			sleep(10);		
+		} else {
+			break;
+		}
+	}
+	echo date('d.m.Y H:i:s')." si:$insessid\tSended to $_to\n";
 	
 
 }

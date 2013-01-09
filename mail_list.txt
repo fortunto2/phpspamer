@@ -1,3 +1,0 @@
-any-user-1@mail.com
-any-user-2@mail.com
-any-user-3@mail.com
